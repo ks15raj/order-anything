@@ -65,6 +65,8 @@ app.route('/admin')
 .all(verifyToken,(req,res,next)=>{
   jwt.verify(req.token, 'secretkey', (err, authData) => {
         if(err) {
+         
+          console.log('nononon')
           res.sendStatus(403);
         } else {
           res.json({
@@ -203,7 +205,7 @@ app.post('/signup/:type',function(req,res){
     })
     adm.save();
     res.write(order);
-    jwt.sign({user},process.env.secret, { expiresIn: '300s' }, (err, token) => {
+    jwt.sign({user},'secretKey', { expiresIn: '300s' }, (err, token) => {
       res.json({
         token
       });
@@ -217,7 +219,7 @@ app.post('/signup/:type',function(req,res){
       type:'admin'
     })
     user.save();
-    jwt.sign({user},'secret', { expiresIn: '100000000000s' }, (err, token) => {
+    jwt.sign({user},'secretKey', { expiresIn: '100000000000s' }, (err, token) => {
       res.json({
         token
       });
@@ -232,7 +234,7 @@ app.post('/signup/:type',function(req,res){
     })
     user.save();
     console.log(process.env.SECRET)
-    jwt.sign({user},'SECRET', { expiresIn: '300000000000000000000s' }, (err, token) => {
+    jwt.sign({user},'secretKey', { expiresIn: '300000000000000000000s' }, (err, token) => {
       res.json(token)
     });
       
