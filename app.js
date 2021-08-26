@@ -23,8 +23,11 @@ const userSchema = {
 
   
 }
-const addressSchema={
-  point:String
+const itemSchema={
+   
+   name:String,
+   category:String,
+   point:Array
 }
 
 
@@ -50,33 +53,10 @@ const Order=mongoose.model('Orders',orderSchema);
 const User = mongoose.model('Users',userSchema);
 const Admin=mongoose.model('Admin',adminSchema);
 const Delivery=mongoose.model('Delivery',deliverySchema);
-const address=mongoose.model('Address',addressSchema);
+const Item=mongoose.model('Item',itemSchema);
 
-//post route to add new address;
-app.post('/update/address',function(req,res){
-  const add = new address({
-    serial:Math.floor(Math.random()*100),
-    point:req.body.address
-  })
-  add.save()
-})
 //admin route to perform admin actions
 app.route('/admin')
-.all(verifyToken,(req,res,next)=>{
-  jwt.verify(req.token, 'secretkey', (err, authData) => {
-        if(err) {
-         
-          console.log('nononon')
-          res.sendStatus(403);
-        } else {
-          res.json({
-            message: 'Post created...',
-            authData
-          });
-          next();
-        }
-      });
-}) 
 //get route to get all pending order for admin approval
  .get(function (req, res) {
   Admin.find({},function(err,result) {
@@ -90,7 +70,6 @@ app.route('/admin')
 //patch route to update the status, prices and assign delivery boy 
   .patch(function (req, res) {
    const status = req.body.status;
-   const price = req.body.price;
    const deliveryGuy = req.body.deliveryMan;
    let force;
    let pick;
@@ -104,22 +83,7 @@ app.route('/admin')
     {orderID:req.body.order},
     {$set:{ 
       Status:req.body.status,
-      pickupPoint:function(){
-        Item.findOne({name:req.body.order},function(err,result){
-      if(!err){
-        return result.pick[Math.floor(Math.random()*pick.length)+1];
-      }
-      
-      })},
       deliveryGuy:force,
-      price:price,
-      payable:function(){
-        Order.findOne({ID:req.body.order},function(err,result){
-      if(!err){
-        return (result.quantity)*price;
-      }
-      
-      })}
   }},
     function(err) {
       if(!err){
@@ -140,23 +104,9 @@ app.route('/admin')
 })
 //route specific for delivery person
 app.route('/delivery')
-//token verification
-.all(verifyToken,(req,res,next)=>{
-  jwt.verify(req.token, 'secretkey', (err, authData) => {
-        if(err) {
-          res.sendStatus(403);
-        } else {
-          res.json({
-            message: 'Post created...',
-            authData
-          });
-          next();
-        }
-      });
-})
 .get(function (req, res, next) {
   Delivery.find({},function(err,result){
-    if(err){
+    if(err){ 
       res.send(err)
     }else{
       res.send(result)
@@ -173,10 +123,20 @@ app.route('/delivery')
 app.post('/signup/:type',function(req,res){
   const userMobile = req.body.mobile;
   const custName = req.body.name;
-  console.log(userMobile)
   if(req.params.type==='customer'){
-    
+    const orderInfo =[];
     const userOrder =req.body.order;
+    userOrder.forEach(order => {
+      Item.findOne({name:order.name},function(err,result){
+        const js = {
+          name:order.name,
+          quantity:order.quantity,
+          point:result.point[Math.floor(Math.random()*(point.length))]
+        }
+        orderInfo.push(js);
+      })
+    });
+   
     const user = new User({
       ID:Math.floor(Math.random() * 100000),   
       name:custName,
@@ -191,12 +151,8 @@ app.post('/signup/:type',function(req,res){
       orderID:oID,
       custDetails:user,
       time:time,
-      order:userOrder[0],
+      order:orderInfo,
       Status:'Order Created',
-      quantity:userOrder[0].quantity,
-      price:null,
-      payable:null,
-      pickupPoint:'Wait we will let you know about pick up point',
       deliveryGuy:'Not Assigned'
       })
     order.save();
@@ -204,13 +160,7 @@ app.post('/signup/:type',function(req,res){
       order:order
     })
     adm.save();
-    res.write(order);
-    jwt.sign({user},'secretKey', { expiresIn: '300s' }, (err, token) => {
-      res.json({
-        token
-      });
-    });
-    res.send()
+    res.send(order)
   }else if(req.params.type==='admin'){
     const user = new User({
       ID:Math.floor(Math.random() * 100000),   
@@ -219,11 +169,6 @@ app.post('/signup/:type',function(req,res){
       type:'admin'
     })
     user.save();
-    jwt.sign({user},'secretKey', { expiresIn: '100000000000s' }, (err, token) => {
-      res.json({
-        token
-      });
-    });
    
   }else{
     const user = new User({
@@ -233,11 +178,6 @@ app.post('/signup/:type',function(req,res){
       type:'deliveryMan'
     })
     user.save();
-    console.log(process.env.SECRET)
-    jwt.sign({user},'secretKey', { expiresIn: '300000000000000000000s' }, (err, token) => {
-      res.json(token)
-    });
-      
   }
   })
 
@@ -250,25 +190,4 @@ app.post('/signup/:type',function(req,res){
 app.listen(3000, () => {
     console.log(`Server started on port`);
 });
-
-// Verify Token
-function verifyToken(req, res, next) {
-  // Get auth header value
-  const bearerHeader = req.headers['authorization'];
-  // Check if bearer is undefined
-  if(typeof bearerHeader !== 'undefined') {
-    // Split at the space
-    const bearer = bearerHeader.split(' ');
-    // Get token from array
-    const bearerToken = bearer[1];
-    console.log(bearerToken)
-    // Set the token
-    req.token = bearerToken;
-    // Next middleware
-    next();
-  } else {
-    // Forbidden
-    res.sendStatus(403);
-  }
-
-}
+ 
